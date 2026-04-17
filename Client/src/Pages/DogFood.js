@@ -9,7 +9,7 @@ export default function DogFood() {
   useEffect(() => {
     const fetchData = async () => {
       const products = await fetchDogFood();
-      setDogFood(products);
+      setDogFood(Array.isArray(products) ? products : []);
     };
 
     fetchData();

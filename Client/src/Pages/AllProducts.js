@@ -1,19 +1,45 @@
 import React, { useContext } from 'react';
 import ProductList from '../Components/ProductList';
 import { PetContext } from '../Context/Context';
+import '../Styles/Products.css';
 
-export default function DogFood() {
+export default function AllProducts() {
   const { products } = useContext(PetContext);
+  const safeProducts = Array.isArray(products) ? products : [];
 
   return (
-    <>
-      <section className="products d-flex flex-column align-items-center mb-5" style={{ paddingTop: '80px' }}>
-        <h1 className="mt-5 text-black fw-bolder">
-          <span>Our</span> Products
-        </h1>
+    <main className="catalog-page">
+      <section className="catalog-hero">
+        <div className="catalog-hero-copy">
+          <span className="catalog-kicker">Open Pet Food Facts</span>
+          <h1>
+            Our <span>Products</span>
+          </h1>
+          <p>
+            Explore a clean, modern catalog with product cards designed for fast browsing, clear pricing,
+            and easy discovery.
+          </p>
+        </div>
 
-        <ProductList products={products} />
+        <div className="catalog-hero-stats">
+          <div className="catalog-stat">
+            <strong>{safeProducts.length}</strong>
+            <span>Products loaded</span>
+          </div>
+          <div className="catalog-stat">
+            <strong>Fast</strong>
+            <span>Product search</span>
+          </div>
+          <div className="catalog-stat">
+            <strong>Filtered</strong>
+            <span>Dog and cat food</span>
+          </div>
+        </div>
       </section>
-    </>
+
+      <section className="catalog-section">
+        <ProductList products={safeProducts} />
+      </section>
+    </main>
   );
 }

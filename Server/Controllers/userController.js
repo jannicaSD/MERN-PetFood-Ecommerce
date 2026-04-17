@@ -7,6 +7,137 @@ const bcrypt = require('bcrypt');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 let orderDetails = {};
 
+const getFallbackReply = (message) => {
+  const query = message.toLowerCase();
+
+  if (query.includes('dog')) {
+    return 'For dogs, start with high-protein options and choose food based on age and size. You can browse the Dog Food section in this store.';
+  }
+
+  if (query.includes('cat')) {
+    return 'For cats, choose taurine-rich food and filter by life stage. Check the Cat Food section to compare options.';
+  }
+
+  if (query.includes('order') || query.includes('delivery') || query.includes('track')) {
+    return 'For order help: login, open Orders page, and verify payment status there. If payment failed, retry checkout from cart.';
+  }
+
+  if (query.includes('price') || query.includes('discount') || query.includes('offer')) {
+    return 'You can compare product prices on the Products page and check top-selling items for value picks.';
+  }
+
+  return 'I can help with product suggestions, feeding basics, checkout issues, and order guidance. Ask a specific question and I will guide you.';
+};
+
+const generateChatReply = async (message, history = []) => {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const openaiKey = process.env.OPENAI_API_KEY;
+
+  if (!geminiKey && !openaiKey) {
+    return getFallbackReply(message);
+  }
+
+  // Use Gemini if API key is present
+  if (geminiKey) {
+    return generateGeminiReply(message, history, geminiKey);
+  }
+
+  // Fallback to OpenAI
+  return generateOpenAIReply(message, history, openaiKey);
+};
+
+const generateGeminiReply = async (message, history = [], apiKey) => {
+  const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  const systemPrompt =
+    'You are a concise and helpful assistant for a pet-food ecommerce website. Give practical and safe guidance in short paragraphs.';
+
+  const formattedHistory = history
+    .filter((item) => item && (item.role === 'user' || item.role === 'assistant') && item.content)
+    .slice(-8);
+
+  // Build Gemini conversation format
+  const contents = [
+    {
+      role: 'user',
+      parts: [{ text: systemPrompt }],
+    },
+    {
+      role: 'model',
+      parts: [{ text: 'Understood. I will be concise and helpful for pet-food ecommerce.' }],
+    },
+    ...formattedHistory.map((item) => ({
+      role: item.role === 'user' ? 'user' : 'model',
+      parts: [{ text: String(item.content) }],
+    })),
+    {
+      role: 'user',
+      parts: [{ text: message }],
+    },
+  ];
+
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents,
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 200,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      return getFallbackReply(message);
+    }
+
+    const data = await response.json();
+    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    return reply || getFallbackReply(message);
+  } catch (error) {
+    return getFallbackReply(message);
+  }
+};
+
+const generateOpenAIReply = async (message, history = [], apiKey) => {
+  const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+  const systemPrompt =
+    'You are a concise and helpful assistant for a pet-food ecommerce website. Give practical and safe guidance in short paragraphs.';
+
+  const formattedHistory = history
+    .filter((item) => item && (item.role === 'user' || item.role === 'assistant') && item.content)
+    .slice(-8)
+    .map((item) => ({ role: item.role, content: String(item.content) }));
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.4,
+        messages: [{ role: 'system', content: systemPrompt }, ...formattedHistory, { role: 'user', content: message }],
+      }),
+    });
+
+    if (!response.ok) {
+      return getFallbackReply(message);
+    }
+
+    const data = await response.json();
+    const reply = data?.choices?.[0]?.message?.content;
+    return reply || getFallbackReply(message);
+  } catch (error) {
+    return getFallbackReply(message);
+  }
+};
+
 module.exports = {
   register: async (req, res) => {
     const { error, value } = userRegisterSchema.validate(req.body);
@@ -325,6 +456,21 @@ module.exports = {
       status: 'success',
       message: 'Successfully fetched order details.',
       data: orderDetails,
+    });
+  },
+
+  chatbotReply: async (req, res) => {
+    const { message, history } = req.body;
+
+    if (!message || !String(message).trim()) {
+      return res.status(400).json({ message: 'Message is required.' });
+    }
+
+    const reply = await generateChatReply(String(message).trim(), Array.isArray(history) ? history : []);
+
+    res.status(200).json({
+      status: 'success',
+      reply,
     });
   },
 };

@@ -9,7 +9,7 @@ export default function CatFood() {
   useEffect(() => {
     const fetchData = async () => {
       const products = await fetchCatFood();
-      setCatFood(products);
+      setCatFood(Array.isArray(products) ? products : []);
     };
 
     fetchData();

@@ -41,150 +41,130 @@ const Navbar = () => {
 
   const handleNavigation = (path) => {
     navigate(path);
-    setShowCollapse(!showCollapse);
+    setShowCollapse(false);
+  };
+
+  const handleSearchNavigation = (productId) => {
+    setFilteredProducts([]);
+    setSearchInput('');
+    navigate(`/products/${productId}`);
+    setShowSearchBox(false);
   };
 
   return (
-    <div>
-      <MDBNavbar expand="lg" className="nav-container">
-        <MDBContainer fluid>
+    <MDBNavbar expand="lg" className="nav-container">
+      <MDBContainer fluid className="nav-inner">
+        <div className="nav-left">
           <MDBNavbarToggler
             data-mdb-toggle="collapse"
             data-mdb-target="#navbarCollapse"
             aria-label="Toggle navigation"
             onClick={toggleNavbar}
+            className="nav-toggler"
           >
             <MDBIcon icon="bars" fas />
           </MDBNavbarToggler>
-          <h1 className="logo" onClick={() => navigate('/')}>
-            Kitter
-          </h1>
-          <MDBCollapse navbar show={showCollapse} id="navbarCollapse">
-            <MDBNavbarNav className="navbar-links">
-              <MDBNavbarLink onClick={() => handleNavigation('/')}>Home</MDBNavbarLink>
-              <MDBNavbarLink onClick={() => handleNavigation('/products')}>Products</MDBNavbarLink>
-              <MDBNavbarLink onClick={() => handleNavigation('/cat-food')} className="nav-food">
-                Cat Food
-              </MDBNavbarLink>
-              <MDBNavbarLink onClick={() => handleNavigation('/dog-food')} className="nav-food">
-                Dog Food
-              </MDBNavbarLink>
-            </MDBNavbarNav>
-          </MDBCollapse>
 
-          <div className="navbar-icons d-flex">
-            <div style={{ lineHeight: '13px' }} className="greeting text-center me-3">
-              <span style={{ fontSize: '15px', cursor: 'pointer' }} onClick={() => !loginStatus && navigate('/login')}>
-                Hello,
-                <br />
-                {name ? <>{name.split(' ')[0]}</> : <>Sign In</>}
-              </span>
-            </div>
-            <div>
-              {showSearchBox && (
+          <button type="button" className="logo-button" onClick={() => navigate('/')}>
+            <span className="logo-mark">K</span>
+            <span className="logo-text">Kitter</span>
+          </button>
+        </div>
+
+        <MDBCollapse navbar show={showCollapse} id="navbarCollapse" className="nav-collapse-panel">
+          <MDBNavbarNav className="navbar-links">
+            <MDBNavbarLink onClick={() => handleNavigation('/')}>Home</MDBNavbarLink>
+            <MDBNavbarLink onClick={() => handleNavigation('/products')}>Products</MDBNavbarLink>
+            <MDBNavbarLink onClick={() => handleNavigation('/cat-food')} className="nav-food">
+              Cat Food
+            </MDBNavbarLink>
+            <MDBNavbarLink onClick={() => handleNavigation('/dog-food')} className="nav-food">
+              Dog Food
+            </MDBNavbarLink>
+          </MDBNavbarNav>
+        </MDBCollapse>
+
+        <div className="navbar-actions">
+          <button type="button" className="action-pill greeting-pill" onClick={() => !loginStatus && navigate('/login')}>
+            <span className="action-label">Hello</span>
+            <span className="action-value">{name ? name.split(' ')[0] : 'Sign In'}</span>
+          </button>
+
+          <div className="search-wrap">
+            <button type="button" className="icon-button" onClick={toggleSearchBox} aria-label="Search products">
+              <MDBIcon fas icon={showSearchBox ? 'times' : 'search'} />
+            </button>
+
+            {showSearchBox && (
+              <div className="search-panel">
                 <div className="search-box">
                   <input
                     type="text"
-                    placeholder="Search..."
-                    value={searchInput.length >= 1 ? searchInput : ''}
+                    placeholder="Search products..."
+                    value={searchInput}
                     onChange={handleSearchChange}
                   />
                 </div>
-              )}
-              <div className="search-icon me-3 me-lg-0">
-                <span className="nav-link" onClick={toggleSearchBox}>
-                  <MDBIcon fas icon="search" />
-                </span>
+
+                <ul className={`search-output ${filteredProducts.length > 0 ? 'show' : ''}`}>
+                  {filteredProducts.length > 0 ? (
+                    filteredProducts.map((product) => (
+                      <li key={product._id} className="search-item" onClick={() => handleSearchNavigation(product._id)}>
+                        <span className="search-item-title">{product.title}</span>
+                        <span className="search-item-meta">{product.category}</span>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="search-empty">No matching products found.</li>
+                  )}
+                </ul>
               </div>
-            </div>
-            <ul
-              style={{
-                position: 'absolute',
-                listStyle: 'none',
-                backgroundColor: 'white',
-                width: '405px',
-                top: '25px',
-                right: '157px',
-                borderRadius: '10px',
-                paddingLeft: '0',
-                paddingTop: '50px',
-                zIndex: '-1',
-              }}
-              className="search-output"
-            >
-              {filteredProducts.map((product) => (
-                <React.Fragment key={product._id}>
-                  <li
-                    className="ps-3 text-black fw-bold"
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => {
-                      setFilteredProducts([]);
-                      setSearchInput('');
-                      navigate(`/products/${product._id}`);
-                      toggleSearchBox();
-                    }}
-                  >
-                    {product.title}
-                  </li>
-                  <hr className="m-3" />
-                </React.Fragment>
-              ))}
-            </ul>
+            )}
+          </div>
 
-            <div className="me-3 px-3 me-lg-0">
-              <span className="nav-link">
-                <MDBIcon fas icon="user" className="profile">
-                  <div className="profile-container">
-                    <ul className="profile-list">
-                      {loginStatus ? (
-                        <>
-                          <li>My Profile</li>
-                          <hr />
-                          <li onClick={() => navigate('/orders')}>Orders</li>
-                          <hr />
-                          <li onClick={() => navigate('/wishlist')}>Wishlist</li>
-                          <hr />
-                          <li
-                            onClick={() => {
-                              setLoginStatus(false);
-                              localStorage.clear();
-                              // setWishlist([]);
-                              navigate('/');
-                            }}
-                          >
-                            Log Out
-                          </li>
-                        </>
-                      ) : (
-                        <>
-                          <li onClick={() => navigate('/login')}>Sign In</li>
-                        </>
-                      )}
-                    </ul>
-                  </div>
-                </MDBIcon>
-              </span>
-            </div>
-            <div className="me-3 me-lg-0">
-              <span
-                className="nav-link"
-                onClick={() => {
-                  loginStatus ? navigate('/cart') : toast.error('Sign in to your account');
-                }}
-              >
-                <MDBIcon fas icon="shopping-cart" className="cart" />
-
-                {loginStatus && cart.length > 0 && (
-                  <MDBBadge color="dark" notification pill style={{ color: 'white' }}>
-                    {cart.length}
-                  </MDBBadge>
+          <div className="icon-button profile-button" aria-label="Profile menu">
+            <MDBIcon fas icon="user" />
+            <div className="profile-container">
+              <ul className="profile-list">
+                {loginStatus ? (
+                  <>
+                    <li onClick={() => navigate('/orders')}>My Orders</li>
+                    <li onClick={() => navigate('/wishlist')}>Wishlist</li>
+                    <li
+                      onClick={() => {
+                        setLoginStatus(false);
+                        localStorage.clear();
+                        navigate('/');
+                      }}
+                    >
+                      Log Out
+                    </li>
+                  </>
+                ) : (
+                  <li onClick={() => navigate('/login')}>Sign In</li>
                 )}
-              </span>
+              </ul>
             </div>
           </div>
-        </MDBContainer>
-      </MDBNavbar>
-    </div>
+
+          <button
+            type="button"
+            className="icon-button cart-button"
+            onClick={() => {
+              loginStatus ? navigate('/cart') : toast.error('Sign in to your account');
+            }}
+            aria-label="Cart"
+          >
+            <MDBIcon fas icon="shopping-cart" />
+            {loginStatus && cart.length > 0 && (
+              <MDBBadge color="danger" notification pill className="cart-badge">
+                {cart.length}
+              </MDBBadge>
+            )}
+          </button>
+        </div>
+      </MDBContainer>
+    </MDBNavbar>
   );
 };
 

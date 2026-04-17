@@ -9,7 +9,7 @@ import '../Styles/Home.css';
 export default function Details() {
   const { id } = useParams();
   const { fetchProductDetails, loginStatus, cart, addToCart } = useContext(PetContext);
-  const [item, setItem] = useState([]);
+  const [item, setItem] = useState({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -44,6 +44,11 @@ export default function Details() {
                   color="dark"
                   className="det-button"
                   onClick={() => {
+                    if (item.source === 'openpetfoodfacts') {
+                      toast.error('Demo products are browse-only.');
+                      return;
+                    }
+
                     loginStatus ? addToCart(item._id) : toast.error('Sign in to your account');
                   }}
                 >

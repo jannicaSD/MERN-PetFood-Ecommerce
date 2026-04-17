@@ -7,6 +7,7 @@ const checkAuth = require('../Middleware/checkAuth');
 router
   .post('/register', tryCatch(controller.register))
   .post('/login', tryCatch(controller.login))
+  .post('/chatbot', tryCatch(controller.chatbotReply))
 
   .post('/:id/payment', tryCatch(controller.payment))
   .get('/payment/success', tryCatch(controller.success))

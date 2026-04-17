@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { axios } from '../Utils/Axios';
 import toast from 'react-hot-toast';
+import { fetchOpenPetFoodCatalog, fetchOpenPetFoodByCategory, fetchOpenPetFoodDetails } from '../Utils/openPetFoodFacts';
 
 const PetContext = createContext();
 
@@ -16,10 +17,11 @@ const PetProvider = ({ children }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get('/api/users/products');
-        setProducts(response.data.data);
+        const response = await fetchOpenPetFoodCatalog();
+        setProducts(Array.isArray(response) ? response : []);
       } catch (error) {
-        toast.error(error.response.data.message);
+        toast.error(error?.message || 'Failed to load products');
+        setProducts([]);
       }
     };
     fetchData();
@@ -27,28 +29,30 @@ const PetProvider = ({ children }) => {
 
   const fetchCatFood = async () => {
     try {
-      const response = await axios.get('/api/users/products/category/Cat');
-      return response.data.data;
+      const response = await fetchOpenPetFoodByCategory('cat');
+      return Array.isArray(response) ? response : [];
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(error?.message || 'Failed to load cat food');
+      return [];
     }
   };
 
   const fetchDogFood = async () => {
     try {
-      const response = await axios.get('/api/users/products/category/Dog');
-      return response.data.data;
+      const response = await fetchOpenPetFoodByCategory('dog');
+      return Array.isArray(response) ? response : [];
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(error?.message || 'Failed to load dog food');
+      return [];
     }
   };
 
   const fetchProductDetails = async (id) => {
     try {
-      const response = await axios.get(`/api/users/products/${id}`);
-      return response.data.data;
+      return await fetchOpenPetFoodDetails(id);
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(error?.message || 'Failed to load product details');
+      return null;
     }
   };
 

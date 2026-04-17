@@ -14,6 +14,7 @@ import CatFood from './Pages/CatFood';
 import Details from './Pages/Details';
 import Wishlist from './Pages/Wishlist';
 import Footer from './Components/Footer';
+import ChatbotWidget from './Components/ChatbotWidget';
 import FixedAdmin from './Admin/FixedAdmin';
 import SuccessPayment from './Pages/SuccessPayment';
 
@@ -49,6 +50,7 @@ function App() {
           <Route path="/dashboard/products/:id" element={<FixedAdmin />} />
           <Route path="/dashboard/add-products" element={<FixedAdmin />} />
         </Routes>
+        {!isDashboardRoute && <ChatbotWidget />}
         {!isDashboardRoute && <Footer />}
       </PetProvider>
     </>

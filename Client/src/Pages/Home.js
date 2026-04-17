@@ -9,6 +9,7 @@ import '../Styles/Products.css';
 
 const Home = () => {
   const { products } = useContext(PetContext);
+  const safeProducts = Array.isArray(products) ? products : [];
 
   return (
     <div>
@@ -19,7 +20,7 @@ const Home = () => {
         <h1 className="text-black fw-bolder">
           <span>Best</span> Seller
         </h1>
-        <ProductList products={products.slice(0, 8)} />
+        <ProductList products={safeProducts.slice(0, 8)} />
       </section>
 
       <Services />
