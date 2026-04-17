@@ -7,6 +7,11 @@ This project simulates a real-world e-commerce system by combining **clean UI/UX
 ---
 
 
+<img width="1919" height="692" alt="image" src="https://github.com/user-attachments/assets/d3a195e8-9aa6-4df2-8ff2-44d8df970447" />
+
+
+<img width="1919" height="681" alt="image" src="https://github.com/user-attachments/assets/cce4fca3-ad38-4ada-8ea4-a549cd9d1a3d" />
+
 ## 🧠 Key Highlights
 
 - 🤖 AI-driven product discovery via chatbot  
