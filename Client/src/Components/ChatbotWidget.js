@@ -46,18 +46,81 @@ const ALLERGEN_ALIASES = {
   milk: ['milk', 'dairy', 'lactose'],
   grain: ['grain', 'wheat', 'corn', 'maize', 'soy'],
   egg: ['egg'],
+  sunflower: ['sunflower', 'sunflower oil', 'shunflower', 'shunflower oil'],
 };
 
 const STOP_WORDS = [
+  'a',
+  'an',
+  'and',
+  'or',
+  'the',
+  'is',
+  'are',
+  'am',
+  'any',
+  'there',
+  'ther',
+  'this',
+  'that',
+  'these',
+  'those',
+  'i',
+  'me',
+  'my',
+  'you',
+  'your',
+  'we',
+  'our',
+  'it',
+  'can',
+  'could',
+  'would',
+  'should',
+  'please',
+  'hi',
+  'hello',
+  'hey',
+  'what',
+  'which',
+  'who',
+  'where',
+  'when',
+  'how',
   'dog',
   'cat',
   'food',
+  'foods',
   'price',
+  'prices',
+  'product',
+  'products',
   'under',
   'over',
   'below',
+  'above',
+  'more',
+  'less',
+  'than',
+  'upto',
+  'up',
+  'budget',
+  'average',
+  'avg',
+  'mean',
+  'cost',
+  'amount',
+  'range',
+  'between',
+  'around',
+  'within',
+  'inr',
+  'rs',
   'cheap',
   'show',
+  'find',
+  'list',
+  'best',
   'allergic',
   'allergy',
   'ingredient',
@@ -76,7 +139,7 @@ const normalizeAllergyToken = (token) => {
     return null;
   }
 
-  const entry = Object.entries(ALLERGEN_ALIASES).find(([, aliases]) => aliases.includes(cleaned));
+  const entry = Object.entries(ALLERGEN_ALIASES).find(([, aliases]) => aliases.some((alias) => cleaned === alias || cleaned.includes(alias)));
   return entry ? entry[0] : cleaned;
 };
 
@@ -102,15 +165,48 @@ const extractAllergyTerms = (query) => {
 
   const fromPhrase = matches
     .join(' ')
-    .split(/,|and|or|\s+/)
+    .split(/,|\band\b|\bor\b/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 1)
     .map((part) => normalizeAllergyToken(part))
-    .filter(Boolean);
+    .filter((term) => Boolean(term) && !['oil', 'ingredient', 'ingredients', 'food'].includes(term));
 
   const fromWords = directWords
     .map((part) => normalizeAllergyToken(part))
     .filter(Boolean);
 
   return [...new Set([...fromPhrase, ...fromWords])];
+};
+
+const parseAmountToken = (value) => {
+  const raw = String(value || '').trim().toLowerCase();
+  if (!raw) {
+    return null;
+  }
+
+  const normalized = raw.replace(/inr|rs\.?|₹/g, '').replace(/,/g, '').trim();
+  const hasK = normalized.endsWith('k');
+  const numericPart = hasK ? normalized.slice(0, -1) : normalized;
+  const amount = Number(numericPart);
+
+  if (!Number.isFinite(amount)) {
+    return null;
+  }
+
+  return hasK ? amount * 1000 : amount;
+};
+
+const getPriceFilters = (query) => {
+  const underPattern = /(?:under|below|less than|upto|up to|within)\s*(?:rs\.?|₹|inr)?\s*([\d,.]+\s*k?)/;
+  const overPattern = /(?:over|above|more than)\s*(?:rs\.?|₹|inr)?\s*([\d,.]+\s*k?)/;
+
+  const underMatch = query.match(underPattern);
+  const overMatch = query.match(overPattern);
+
+  return {
+    max: parseAmountToken(underMatch?.[1]),
+    min: parseAmountToken(overMatch?.[1]),
+  };
 };
 
 const buildProductFilterReply = (message, products = []) => {
@@ -143,17 +239,14 @@ const buildProductFilterReply = (message, products = []) => {
     filtered = filtered.filter((item) => String(item.category || '').toLowerCase().includes('cat'));
   }
 
-  const underMatch = query.match(/(?:under|below|less than)\s*(\d+)/);
-  const overMatch = query.match(/(?:over|above|more than)\s*(\d+)/);
+  const { min, max } = getPriceFilters(query);
 
-  if (underMatch?.[1]) {
-    const max = Number(underMatch[1]);
-    filtered = filtered.filter((item) => Number(item.price) <= max);
+  if (Number.isFinite(max)) {
+    filtered = filtered.filter((item) => Number.isFinite(Number(item.price)) && Number(item.price) <= max);
   }
 
-  if (overMatch?.[1]) {
-    const min = Number(overMatch[1]);
-    filtered = filtered.filter((item) => Number(item.price) >= min);
+  if (Number.isFinite(min)) {
+    filtered = filtered.filter((item) => Number.isFinite(Number(item.price)) && Number(item.price) >= min);
   }
 
   const allergyTerms = extractAllergyTerms(query);
@@ -165,14 +258,26 @@ const buildProductFilterReply = (message, products = []) => {
   }
 
   const keywords = query
+    .replace(/[^a-z0-9\s₹.,]/g, ' ')
     .split(/\s+/)
     .map((word) => word.trim())
-    .filter((word) => word.length > 2 && !STOP_WORDS.includes(word));
+    .filter(
+      (word) =>
+        word.length > 2 &&
+        !STOP_WORDS.includes(word) &&
+        !/^\d+(?:\.\d+)?k?$/.test(word.replace(/,/g, ''))
+    );
 
-  if (keywords.length > 0) {
+  const searchableKeywords = keywords.filter((word) => !allergyTerms.includes(normalizeAllergyToken(word)));
+
+  const hasPriceConstraint = Number.isFinite(min) || Number.isFinite(max);
+  const hasAverageIntent = query.includes('average') || query.includes('avg') || query.includes('mean');
+  const shouldApplyKeywordFilter = searchableKeywords.length > 0 && (!hasPriceConstraint || searchableKeywords.length > 1 || hasAverageIntent);
+
+  if (shouldApplyKeywordFilter) {
     filtered = filtered.filter((item) => {
       const text = `${item.title || ''} ${item.description || ''}`.toLowerCase();
-      return keywords.some((keyword) => text.includes(keyword));
+      return searchableKeywords.some((keyword) => text.includes(keyword));
     });
   }
 
@@ -184,8 +289,43 @@ const buildProductFilterReply = (message, products = []) => {
     return 'I could not find matching products for that filter. Try a broader query like "dog food under 1000".';
   }
 
-  const topItems = filtered.slice(0, 5);
+  const pricedItems = filtered.filter((item) => Number.isFinite(Number(item.price)));
+  if (hasAverageIntent && pricedItems.length > 0) {
+    const total = pricedItems.reduce((sum, item) => sum + Number(item.price), 0);
+    const avgPrice = Math.round(total / pricedItems.length);
+    const exampleLines = pricedItems
+      .sort((a, b) => Number(a.price) - Number(b.price))
+      .slice(0, 3)
+      .map((item, index) => `${index + 1}. ${item.title} - ${formatMoney(item.price)}`);
+
+    const filterSummary = [];
+    if (Number.isFinite(max)) {
+      filterSummary.push(`under ${formatMoney(max)}`);
+    }
+    if (Number.isFinite(min)) {
+      filterSummary.push(`above ${formatMoney(min)}`);
+    }
+
+    const summaryText = filterSummary.length > 0 ? ` (${filterSummary.join(' and ')})` : '';
+    return `The average price${summaryText} is ${formatMoney(avgPrice)} across ${pricedItems.length} products.\n${exampleLines.join('\n')}`;
+  }
+
+  const sortedItems = [...filtered].sort((a, b) => Number(a.price) - Number(b.price));
+  const topItems = sortedItems.slice(0, 5);
   const lines = topItems.map((item, index) => `${index + 1}. ${item.title} - ${formatMoney(item.price)}`);
+
+  if (Number.isFinite(max) || Number.isFinite(min)) {
+    const labelParts = [];
+    if (Number.isFinite(max)) {
+      labelParts.push(`under ${formatMoney(max)}`);
+    }
+    if (Number.isFinite(min)) {
+      labelParts.push(`above ${formatMoney(min)}`);
+    }
+
+    const priceLabel = labelParts.join(' and ');
+    return `I found ${filtered.length} products ${priceLabel}.\n${lines.join('\n')}`;
+  }
 
   if (allergyTerms.length > 0) {
     return `Here are safer matches after avoiding: ${allergyTerms.join(', ')}.\n${lines.join('\n')}`;
